@@ -97,7 +97,9 @@ void UpdateStrip(Adafruit_NeoPixel *strip, testarea *testareas)
 	{
 		if ((testareas[i].start + testareas[i].end) != 0)
 		{
-			if (testareas[i].getState() == TestState_Failed)
+			switch (testareas[i].getState())
+			{
+			case TestState_Failed:
 			{
 				uint8 ledvalue1 = LED(255);
 				uint8 ledvalue2 = LED(90);
@@ -106,7 +108,8 @@ void UpdateStrip(Adafruit_NeoPixel *strip, testarea *testareas)
 					strip->setPixelColor(j,ledvalue1,ledvalue2,0);
 				}
 			}
-			if (testareas[i].getState() == TestState_Ok)
+			break;
+			case TestState_Ok:
 			{
 				uint8 ledvalue1 = LED(255);
 				for (uint16_t j = testareas[i].start; j < testareas[i].end; j++)
@@ -114,14 +117,8 @@ void UpdateStrip(Adafruit_NeoPixel *strip, testarea *testareas)
 					strip->setPixelColor(j,0,ledvalue1,0);
 				}
 			}
-			if (testareas[i].getState() == TestState_Off)
-			{
-				for (uint16_t j = testareas[i].start; j < testareas[i].end; j++)
-				{
-					strip->setPixelColor(j,0,0,0);
-				}
-			}
-			if (testareas[i].getState() == TestState_On)
+			break;
+			case TestState_On:
 			{
 				float numLedsOn = ((float)(testareas[i].end - testareas[i].start)*UpdateState)/(20.0*2);
 				uint8 ledvalue1 = LED(255);
@@ -135,7 +132,8 @@ void UpdateStrip(Adafruit_NeoPixel *strip, testarea *testareas)
 					}
 				}
 			}
-			if (testareas[i].getState() == TestState_On3)
+			break;
+			case  TestState_On3:
 			{
 				float numLedsOn = ((float)(testareas[i].end - testareas[i].start)/5);
 				float numLedsStart = (((float)(testareas[i].end - testareas[i].start)-numLedsOn)*UpdateState)/(20.0);
@@ -150,7 +148,8 @@ void UpdateStrip(Adafruit_NeoPixel *strip, testarea *testareas)
 					}
 				}
 			}
-			if (testareas[i].getState() == TestState_On2)
+			break;
+			case TestState_On2:
 			{
 				float numLedsOn = ((float)(testareas[i].end - testareas[i].start)*UpdateState)/(20.0*2);
 				uint8 ledvalue1 = LED(255);
@@ -163,6 +162,16 @@ void UpdateStrip(Adafruit_NeoPixel *strip, testarea *testareas)
 						strip->setPixelColor(j,0,0,0);
 					}
 				}
+			}
+			break;
+			default:
+			{
+				for (uint16_t j = testareas[i].start; j < testareas[i].end; j++)
+				{
+					strip->setPixelColor(j,0,0,0);
+				}
+			}
+			break;
 			}
 		}
 	}
@@ -267,7 +276,7 @@ void StartDemo2() {
    	    case 0:
    	    	testareas2[0].setState(TestState_Failed);
    	    	testareas2[1].setState(TestState_Ok);
-   	    	testareas2[4].setState(TestState_On3);
+   	    	testareas2[4].setState(TestState_On);
    	    	testareas2[2].setState(TestState_On2);
    	    	testareas2[3].setState(TestState_Ok);
    	    	testareas2[5].setState(TestState_Failed);
@@ -342,7 +351,7 @@ void StartDemo2() {
 			testareas3[9].setState(TestState_Failed);
 			break;
 		case 2:
-			testareas3[0].setState(TestState_On3);
+			testareas3[0].setState(TestState_On);
 			testareas3[1].setState(TestState_Failed);
 			testareas3[4].setState(TestState_On2);
 			testareas3[2].setState(TestState_Failed);
@@ -698,6 +707,19 @@ void init()
 	strip1.begin();  //init port
 	strip2.begin();  //init port
 	strip3.begin();  //init port
+
+	for (int i = 0; i < TESTAREAS; i++)
+	{
+		testareas1[i].start = 0;
+		testareas1[i].end = 0;
+		testareas1[i].setState(TestState_Off);
+		testareas2[i].start = 0;
+		testareas2[i].end = 0;
+		testareas2[i].setState(TestState_Off);
+		testareas3[i].start = 0;
+		testareas3[i].end = 0;
+		testareas3[i].setState(TestState_Off);
+	}
 	testareas1[0].start = 20;
 	testareas1[0].end = 65;
 	testareas1[1].start = 65;
