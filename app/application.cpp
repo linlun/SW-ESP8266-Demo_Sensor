@@ -220,7 +220,7 @@ void StartDemo2() {
    	    	testareas1[5].setState(TestState_Failed);
    			testareas1[6].setState(TestState_Ok);
    			testareas1[7].setState(TestState_On);
-   			testareas1[8].setState(TestState_On2);
+   			testareas1[8].setState(TestState_On3);
    			testareas1[9].setState(TestState_Ok);
    	    	break;
    	    case 1:
@@ -238,7 +238,7 @@ void StartDemo2() {
    	    case 2:
    			testareas1[0].setState(TestState_On);
    			testareas1[1].setState(TestState_Failed);
-   			testareas1[4].setState(TestState_On2);
+   			testareas1[4].setState(TestState_On3);
    			testareas1[2].setState(TestState_Failed);
    			testareas1[3].setState(TestState_On);
    			testareas1[5].setState(TestState_On);
@@ -267,7 +267,7 @@ void StartDemo2() {
    	    case 0:
    	    	testareas2[0].setState(TestState_Failed);
    	    	testareas2[1].setState(TestState_Ok);
-   	    	testareas2[4].setState(TestState_On);
+   	    	testareas2[4].setState(TestState_On3);
    	    	testareas2[2].setState(TestState_On2);
    	    	testareas2[3].setState(TestState_Ok);
    	    	testareas2[5].setState(TestState_Failed);
@@ -278,7 +278,7 @@ void StartDemo2() {
    	    	break;
    	    case 1:
    			testareas2[0].setState(TestState_Ok);
-   			testareas2[1].setState(TestState_On);
+   			testareas2[1].setState(TestState_On3);
    			testareas2[4].setState(TestState_Ok);
    			testareas2[2].setState(TestState_Ok);
    			testareas2[3].setState(TestState_Failed);
@@ -342,7 +342,7 @@ void StartDemo2() {
 			testareas3[9].setState(TestState_Failed);
 			break;
 		case 2:
-			testareas3[0].setState(TestState_On);
+			testareas3[0].setState(TestState_On3);
 			testareas3[1].setState(TestState_Failed);
 			testareas3[4].setState(TestState_On2);
 			testareas3[2].setState(TestState_Failed);
@@ -466,9 +466,9 @@ bool parseSerialData(char *data, int len)
 {
 	/*
 	 * C:1:2:100:200
-	 *	configure row 1 site 2, led start 100 led end 200
+	 *	configure row 1 (range 1 to 3) site 2 (range 0 to 9), led start 100 led end 200
 	 * S:1:2:4
-	 *  Set mode 4 (TestState_Ok) on row 1 site 2
+	 *  Set mode 4 (TestState_Ok) on row 1 (range 1 to 3) site 2 (range 0 to 9)
 	 *   TestState_Off = 0,
 	 *   TestState_On = 1,
 	 *   TestState_On2 = 2,
