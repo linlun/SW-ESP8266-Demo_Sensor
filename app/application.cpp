@@ -38,10 +38,16 @@ int TheaterChaseQ=0;
 int maxIntensity = 255;
 bool inDemoMode = true;
 
+uint8 defaultRed = 255;
+uint8 defaultGreen = 255;
+uint8 defaultBlue = 255;
+uint8 defaultIntensity = 50;
+
 int UpdateDirection=0;
 int UpdateState=0;
 
 #define LED(intensity)	((uint8)((((float)intensity)*maxIntensity)/255.0))
+#define LED_DEFAULT(intensity)	((uint8)((((float)intensity)*defaultIntensity)/255.0))
 
 enum TestState
 {
@@ -51,6 +57,7 @@ enum TestState
 	TestState_Failed = 3,
 	TestState_Ok = 4,
 	TestState_On3 = 5,
+	TestState_Unstable = 6,
 };
 
 
@@ -100,6 +107,15 @@ void UpdateStrip(Adafruit_NeoPixel *strip, testarea *testareas)
 			switch (testareas[i].getState())
 			{
 			case TestState_Failed:
+			{
+				uint8 ledvalue1 = LED(255);
+				for (uint16_t j = testareas[i].start; j < testareas[i].end; j++)
+				{
+					strip->setPixelColor(j,ledvalue1,0,0);
+				}
+			}
+			break;
+			case TestState_Unstable:
 			{
 				uint8 ledvalue1 = LED(255);
 				uint8 ledvalue2 = LED(90);
@@ -166,9 +182,12 @@ void UpdateStrip(Adafruit_NeoPixel *strip, testarea *testareas)
 			break;
 			default:
 			{
+				uint8 ledvalueR = LED_DEFAULT(defaultRed);
+				uint8 ledvalueG = LED_DEFAULT(defaultGreen);
+				uint8 ledvalueB = LED_DEFAULT(defaultBlue);
 				for (uint16_t j = testareas[i].start; j < testareas[i].end; j++)
 				{
-					strip->setPixelColor(j,0,0,0);
+					strip->setPixelColor(j,ledvalueR,ledvalueG,ledvalueB);
 				}
 			}
 			break;
@@ -179,14 +198,17 @@ void UpdateStrip(Adafruit_NeoPixel *strip, testarea *testareas)
 
 void UpdatePixels() {
 
+	uint8 ledvalueR = LED_DEFAULT(defaultRed);
+	uint8 ledvalueG = LED_DEFAULT(defaultGreen);
+	uint8 ledvalueB = LED_DEFAULT(defaultBlue);
 	for (uint16_t i = 0; i < strip1.numPixels(); i++)
 	{
 		if (i < strip1.numPixels())
-			strip1.setPixelColor(i,0,0,0);
+			strip1.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
 		if (i < strip2.numPixels())
-			strip2.setPixelColor(i,0,0,0);
+			strip2.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
 		if (i < strip3.numPixels())
-			strip3.setPixelColor(i,0,0,0);
+			strip3.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
 	}
 	UpdateStrip(&strip1, testareas1);
 	UpdateStrip(&strip2, testareas2);
@@ -225,12 +247,12 @@ void StartDemo2() {
    	UpdateState=0;
    	switch(StripDemoType){           // select demo type
    	    case 0:
-   	    	testareas1[0].setState(TestState_Failed);
+   	    	testareas1[0].setState(TestState_Unstable);
    	    	testareas1[1].setState(TestState_Ok);
    	    	testareas1[4].setState(TestState_On);
    	    	testareas1[2].setState(TestState_On2);
    	    	testareas1[3].setState(TestState_Ok);
-   	    	testareas1[5].setState(TestState_Failed);
+   	    	testareas1[5].setState(TestState_Unstable);
    			testareas1[6].setState(TestState_Ok);
    			testareas1[7].setState(TestState_On);
    			testareas1[8].setState(TestState_On3);
@@ -241,34 +263,34 @@ void StartDemo2() {
    			testareas1[1].setState(TestState_On);
    			testareas1[4].setState(TestState_Ok);
    			testareas1[2].setState(TestState_Ok);
-   			testareas1[3].setState(TestState_Failed);
+   			testareas1[3].setState(TestState_Unstable);
    			testareas1[5].setState(TestState_Ok);
    			testareas1[6].setState(TestState_On);
    			testareas1[7].setState(TestState_Ok);
    			testareas1[8].setState(TestState_Ok);
-   			testareas1[9].setState(TestState_Failed);
+   			testareas1[9].setState(TestState_Unstable);
    			break;
    	    case 2:
    			testareas1[0].setState(TestState_On);
-   			testareas1[1].setState(TestState_Failed);
+   			testareas1[1].setState(TestState_Unstable);
    			testareas1[4].setState(TestState_On3);
-   			testareas1[2].setState(TestState_Failed);
+   			testareas1[2].setState(TestState_Unstable);
    			testareas1[3].setState(TestState_On);
    			testareas1[5].setState(TestState_On);
-   			testareas1[6].setState(TestState_Failed);
+   			testareas1[6].setState(TestState_Unstable);
    			testareas1[7].setState(TestState_On2);
-   			testareas1[8].setState(TestState_Failed);
+   			testareas1[8].setState(TestState_Unstable);
    			testareas1[9].setState(TestState_On);
    			break;
    	    case 3:
    			testareas1[0].setState(TestState_Ok);
    			testareas1[1].setState(TestState_On);
-   			testareas1[4].setState(TestState_Failed);
+   			testareas1[4].setState(TestState_Unstable);
    			testareas1[2].setState(TestState_On2);
    			testareas1[3].setState(TestState_Ok);
    			testareas1[5].setState(TestState_Ok);
    			testareas1[6].setState(TestState_On);
-   			testareas1[7].setState(TestState_Failed);
+   			testareas1[7].setState(TestState_Unstable);
    			testareas1[8].setState(TestState_On2);
    			testareas1[9].setState(TestState_Ok);
    			break;
@@ -278,12 +300,12 @@ void StartDemo2() {
    	}
    	switch(StripDemoType){           // select demo type
    	    case 0:
-   	    	testareas2[0].setState(TestState_Failed);
+   	    	testareas2[0].setState(TestState_Unstable);
    	    	testareas2[1].setState(TestState_Ok);
    	    	testareas2[4].setState(TestState_On);
    	    	testareas2[2].setState(TestState_On2);
    	    	testareas2[3].setState(TestState_Ok);
-   	    	testareas2[5].setState(TestState_Failed);
+   	    	testareas2[5].setState(TestState_Unstable);
    			testareas2[6].setState(TestState_Ok);
    			testareas2[7].setState(TestState_On);
    			testareas2[8].setState(TestState_On2);
@@ -294,34 +316,34 @@ void StartDemo2() {
    			testareas2[1].setState(TestState_On3);
    			testareas2[4].setState(TestState_Ok);
    			testareas2[2].setState(TestState_Ok);
-   			testareas2[3].setState(TestState_Failed);
+   			testareas2[3].setState(TestState_Unstable);
    			testareas2[5].setState(TestState_Ok);
    			testareas2[6].setState(TestState_On);
    			testareas2[7].setState(TestState_Ok);
    			testareas2[8].setState(TestState_Ok);
-   			testareas2[9].setState(TestState_Failed);
+   			testareas2[9].setState(TestState_Unstable);
    			break;
    	    case 2:
    			testareas2[0].setState(TestState_On);
-   			testareas2[1].setState(TestState_Failed);
+   			testareas2[1].setState(TestState_Unstable);
    			testareas2[4].setState(TestState_On2);
-   			testareas2[2].setState(TestState_Failed);
+   			testareas2[2].setState(TestState_Unstable);
    			testareas2[3].setState(TestState_On);
    			testareas2[5].setState(TestState_On3);
-   			testareas2[6].setState(TestState_Failed);
+   			testareas2[6].setState(TestState_Unstable);
    			testareas2[7].setState(TestState_On2);
-   			testareas2[8].setState(TestState_Failed);
+   			testareas2[8].setState(TestState_Unstable);
    			testareas2[9].setState(TestState_On);
    			break;
    	    case 3:
    			testareas2[0].setState(TestState_Ok);
    			testareas2[1].setState(TestState_On);
-   			testareas2[4].setState(TestState_Failed);
+   			testareas2[4].setState(TestState_Unstable);
    			testareas2[2].setState(TestState_On2);
    			testareas2[3].setState(TestState_Ok);
    			testareas2[5].setState(TestState_Ok);
    			testareas2[6].setState(TestState_On);
-   			testareas2[7].setState(TestState_Failed);
+   			testareas2[7].setState(TestState_Unstable);
    			testareas2[8].setState(TestState_On2);
    			testareas2[9].setState(TestState_Ok);
    			break;
@@ -331,12 +353,12 @@ void StartDemo2() {
    	}
 	switch(StripDemoType){           // select demo type
 		case 0:
-			testareas3[0].setState(TestState_Failed);
+			testareas3[0].setState(TestState_Unstable);
 			testareas3[1].setState(TestState_Ok);
 			testareas3[4].setState(TestState_On);
 			testareas3[2].setState(TestState_On3);
 			testareas3[3].setState(TestState_Ok);
-			testareas3[5].setState(TestState_Failed);
+			testareas3[5].setState(TestState_Unstable);
 			testareas3[6].setState(TestState_Ok);
 			testareas3[7].setState(TestState_On);
 			testareas3[8].setState(TestState_On2);
@@ -347,34 +369,34 @@ void StartDemo2() {
 			testareas3[1].setState(TestState_On3);
 			testareas3[4].setState(TestState_Ok);
 			testareas3[2].setState(TestState_Ok);
-			testareas3[3].setState(TestState_Failed);
+			testareas3[3].setState(TestState_Unstable);
 			testareas3[5].setState(TestState_Ok);
 			testareas3[6].setState(TestState_On3);
 			testareas3[7].setState(TestState_Ok);
 			testareas3[8].setState(TestState_Ok);
-			testareas3[9].setState(TestState_Failed);
+			testareas3[9].setState(TestState_Unstable);
 			break;
 		case 2:
 			testareas3[0].setState(TestState_On);
 			testareas3[1].setState(TestState_Failed);
 			testareas3[4].setState(TestState_On2);
-			testareas3[2].setState(TestState_Failed);
+			testareas3[2].setState(TestState_Unstable);
 			testareas3[3].setState(TestState_On);
 			testareas3[5].setState(TestState_On);
-			testareas3[6].setState(TestState_Failed);
+			testareas3[6].setState(TestState_Unstable);
 			testareas3[7].setState(TestState_On2);
-			testareas3[8].setState(TestState_Failed);
+			testareas3[8].setState(TestState_Unstable);
 			testareas3[9].setState(TestState_On);
 			break;
 		case 3:
 			testareas3[0].setState(TestState_Ok);
 			testareas3[1].setState(TestState_On3);
-			testareas3[4].setState(TestState_Failed);
+			testareas3[4].setState(TestState_Unstable);
 			testareas3[2].setState(TestState_On3);
 			testareas3[3].setState(TestState_Ok);
 			testareas3[5].setState(TestState_Ok);
 			testareas3[6].setState(TestState_On);
-			testareas3[7].setState(TestState_Failed);
+			testareas3[7].setState(TestState_Unstable);
 			testareas3[8].setState(TestState_On2);
 			testareas3[9].setState(TestState_Ok);
 			break;
@@ -480,6 +502,10 @@ void connect_Fail()
 bool parseSerialData(char *data, int len)
 {
 	/*
+	 * U:123
+	 *	configure animation speed, default is 35 ms (range 35 to 999)
+	 * D:123:223:43:50
+	 *	configure backgorund color to red=123, green=223, blue=43 with max intensity scaled to 50
 	 * C:1:2:100:200
 	 *	configure row 1 (range 1 to 3) site 2 (range 0 to 9), led start 100 led end 200
 	 * S:1:2:4
@@ -487,7 +513,7 @@ bool parseSerialData(char *data, int len)
 	 *   TestState_Off = 0,
 	 *   TestState_On = 1,
 	 *   TestState_On2 = 2,
-	 *   TestState_Failed = 3,
+	 *   TestState_Unstable = 3,
 	 *   TestState_Ok = 4,
 	 *   TestState_On3 = 5,
 	 * I:255
@@ -503,27 +529,107 @@ bool parseSerialData(char *data, int len)
 	int index = 0;
 	int indexStart = 0;
 	int div = 1000;
+	int temp = 0;
 	switch (data[0])
 	{
+	case 'D':
+		Serial.println("Default color Command");
+		index = 2;
+		indexStart = index;
+		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
+		{
+			div = div /10;
+			temp += div*(data[index] - '0');
+			index++;
+		}
+		ledStart = temp / div;
+		if (temp < 0 || temp > 255)
+			return false;
+		defaultRed = (uint8)temp;
+		index++;
+		indexStart = index;
+		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
+		{
+			div = div /10;
+			temp += div*(data[index] - '0');
+			index++;
+		}
+		ledStart = temp / div;
+		if (temp < 0 || temp > 255)
+			return false;
+		defaultBlue = (uint8)temp;
+		index++;
+		indexStart = index;
+		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
+		{
+			div = div /10;
+			temp += div*(data[index] - '0');
+			index++;
+		}
+		ledStart = temp / div;
+		if (temp < 0 || temp > 255)
+			return false;
+		defaultGreen = (uint8)temp;
+		index++;
+		indexStart = index;
+		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
+		{
+			div = div /10;
+			temp += div*(data[index] - '0');
+			index++;
+		}
+		ledStart = temp / div;
+		if (temp < 0 || temp > 255)
+			return false;
+		defaultIntensity = (uint8)temp;
+		
+		Serial.print("Red: ");
+		Serial.print(defaultRed);
+		Serial.print(" Green: ");
+		Serial.print(defaultGreen);
+		Serial.print(" Blue: ");
+		Serial.print(defaultBlue);
+		Serial.print(" Intensity: ");
+		Serial.println(defaultIntensity);
+		return true;
+		break;
 	case 'I':
 		Serial.println("Set Max Intensity Command");
 		index = 2;
 		indexStart = index;
-		while(data[index] != ':' && data[index] != '\n' && index < 5)
+		while(data[index] != ':' && data[index] != '\n'  && data[index] >= '0' && data[index] <= '9' && div > 5)
 		{
 			div = div /10;
-			ledStart += div*(data[index] - '0');
+			temp += div*(data[index] - '0');
 			index++;
 		}
-		Serial.println(ledStart);
-		ledStart = ledStart / div;
-		Serial.println(ledStart);
-		if (ledStart < 0 || ledStart > 255)
+		temp = temp / div;
+		if (temp < 0 || temp > 255)
 			return false;
-
+		
 		Serial.print("Max Intensity: ");
-		Serial.println(ledStart);
-		maxIntensity = ledStart;
+		Serial.println(temp);
+		maxIntensity = temp;
+		return true;
+		break;
+	case 'U':
+		Serial.println("Set Animation Speed Command");
+		index = 2;
+		indexStart = index;
+		while(data[index] != ':' && data[index] != '\n'  && data[index] >= '0' && data[index] <= '9' && div > 5)
+		{
+			div = div /10;
+			temp += div*(data[index] - '0');
+			index++;
+		}
+		temp = temp / div;
+		if (temp < 30 || temp > 999)
+			return false;
+		
+		Serial.print("Speed is set to: ");
+		Serial.print(temp);
+		Serial.println("ms");
+		ColorWipeTimer.initializeMs(temp, UpdatePixels).start();
 		return true;
 		break;
 	case 'C':
@@ -534,7 +640,7 @@ bool parseSerialData(char *data, int len)
 			return false;
 		index = 6;
 		indexStart = index;
-		while(data[index] != ':')
+		while(data[index] != ':' && data[index] >= '0' && data[index] <= '9' && div > 5)
 		{
 			div = div /10;
 			ledStart += div*(data[index] - '0');
@@ -546,7 +652,7 @@ bool parseSerialData(char *data, int len)
 		index++;
 		indexStart = index;
 		div = 1000;
-		while(data[index] != ':' && data[index] != '\n' )
+		while(data[index] != ':' && data[index] != '\n'  && data[index] >= '0' && data[index] <= '9' && div > 5)
 		{
 			div = div /10;
 			ledEnd += div*(data[index] - '0');
@@ -611,7 +717,7 @@ bool parseSerialData(char *data, int len)
 		Serial.print(" Mode: ");
 		switch (testareas3[site].getState())
 		{
-		case TestState_Failed:
+		case TestState_Unstable:
 			Serial.println("Failed");
 			break;
 		case TestState_Off:
