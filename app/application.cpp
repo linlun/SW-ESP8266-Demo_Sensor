@@ -190,9 +190,13 @@ void UpdatePixels() {
 	}
 	UpdateStrip(&strip1, testareas1);
 	UpdateStrip(&strip2, testareas2);
+	wdt_feed();
 	UpdateStrip(&strip3, testareas3);
+	wdt_feed();
 	strip1.show();
+	wdt_feed();
 	strip2.show();
+	wdt_feed();
 	strip3.show();
 
 	if (UpdateState >= 20)
@@ -340,7 +344,7 @@ void StartDemo2() {
 			break;
 		case 1:
 			testareas3[0].setState(TestState_Ok);
-			testareas3[1].setState(TestState_On);
+			testareas3[1].setState(TestState_On3);
 			testareas3[4].setState(TestState_Ok);
 			testareas3[2].setState(TestState_Ok);
 			testareas3[3].setState(TestState_Failed);
@@ -364,7 +368,7 @@ void StartDemo2() {
 			break;
 		case 3:
 			testareas3[0].setState(TestState_Ok);
-			testareas3[1].setState(TestState_On);
+			testareas3[1].setState(TestState_On3);
 			testareas3[4].setState(TestState_Failed);
 			testareas3[2].setState(TestState_On3);
 			testareas3[3].setState(TestState_Ok);
@@ -446,8 +450,10 @@ void InitDemo2() {
     	ColorWipeTimer.initializeMs(35, UpdatePixels).start();  //start demo
 		break;
 	}
+	wdt_feed();
 	strip1.show();
 	strip2.show();
+	wdt_feed();
 	strip3.show();
 	StripInitType++;
 }
