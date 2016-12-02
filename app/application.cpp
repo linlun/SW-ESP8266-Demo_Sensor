@@ -521,7 +521,7 @@ void printSerialHelp()
 	Serial.println("\t   Configure animation speed, default is 35 ms (range 35 to 999)");
 	
 	Serial.println("\tD:123:223:43:50:3:247");
-	Serial.println("\t   Configure background color to red=123, green=223, blue=43 with"
+	Serial.println("\t   Configure background color to red=123, green=223, blue=43 with");
 	Serial.pringln("\t   max intensity scaled to 50, starting at LED 3 and ending at LED 247");
 	
 	Serial.println("\tC:1:2:100:200");
