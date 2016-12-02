@@ -206,21 +206,21 @@ void UpdatePixels() {
 	uint8 ledvalueB = LED_DEFAULT(defaultBlue);
 	for (uint16_t i = 0; i < strip1.numPixels(); i++)
 	{
-		if (i > backgroundStart && i < backgroundStart)
+		if (i > backgroundStart && i < backgroundEnd)
 		{
-		if (i < strip1.numPixels())
-			strip1.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
-		if (i < strip2.numPixels())
-			strip2.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
-		if (i < strip3.numPixels())
-			strip3.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
+			if (i < strip1.numPixels())
+				strip1.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
+			if (i < strip2.numPixels())
+				strip2.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
+			if (i < strip3.numPixels())
+				strip3.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
 		} else {
-		if (i < strip1.numPixels())
-			strip1.setPixelColor(i,0,0,0);
-		if (i < strip2.numPixels())
-			strip2.setPixelColor(i,0,0,0);
-		if (i < strip3.numPixels())
-			strip3.setPixelColor(i,0,0,0);
+			if (i < strip1.numPixels())
+				strip1.setPixelColor(i,0,0,0);
+			if (i < strip2.numPixels())
+				strip2.setPixelColor(i,0,0,0);
+			if (i < strip3.numPixels())
+				strip3.setPixelColor(i,0,0,0);
 		}
 	}
 	UpdateStrip(&strip1, testareas1);
@@ -568,7 +568,7 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 0 || temp >= 255)
+		if (temp < 0 || temp > 255)
 		{
 			Serial.print(temp);
 			Serial.println(" Red color out of range 0 < color <= 255");
@@ -586,7 +586,7 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 0 || temp >= 255)
+		if (temp < 0 || temp > 255)
 		{
 			Serial.print(temp);
 			Serial.println(" Blue color out of range 0 < color <= 255");
@@ -604,7 +604,7 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 0 || temp >= 255)
+		if (temp < 0 || temp > 255)
 		{
 			Serial.print(temp);
 			Serial.println(" Green color out of range 0 < color <= 255");
@@ -622,7 +622,7 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 0 || temp >= 255)
+		if (temp < 0 || temp > 255)
 		{
 			Serial.print(temp);
 			Serial.println(" Intensity out of range 0 < intensity <= 255");
@@ -658,7 +658,7 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 0 || temp >= NUMPIXELS_1)
+		if (temp < 0 || temp > NUMPIXELS_1)
 		{
 			Serial.print(temp);
 			Serial.print(" End position out of range 0 < pos <= ");
@@ -691,7 +691,7 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 0 || temp >= 255)
+		if (temp < 0 || temp > 255)
 		{
 			Serial.print(temp);
 			Serial.println(" Intensity out of range 0 < intensity <= 255");
@@ -713,7 +713,7 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 30 || temp >= 999)
+		if (temp < 30 || temp > 999)
 		{
 			Serial.print(temp);
 			Serial.println(" Intensity out of range 30 < delay <= 999");
@@ -767,7 +767,7 @@ bool parseSerialData(char *data, int len)
 		}
 		ledEnd = ledEnd / div;
 
-		if (ledEnd < 0 || ledEnd >= NUMPIXELS_1 || ledEnd < ledStart)
+		if (ledEnd < 0 || ledEnd > NUMPIXELS_1 || ledEnd < ledStart)
 		{
 			Serial.print(ledEnd);
 			Serial.print(" End position out of range 0 > pos >= ");
