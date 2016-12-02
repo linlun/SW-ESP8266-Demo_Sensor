@@ -13,7 +13,7 @@
 #define PIN            4
 
 // How many NeoPixels are attached to the Esp8266?
-#define NUMPIXELS_1      250
+#define NUMPIXELS_1      247
 #define NUMPIXELS_2      NUMPIXELS_1
 #define NUMPIXELS_3      NUMPIXELS_1
 
