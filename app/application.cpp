@@ -560,6 +560,7 @@ bool parseSerialData(char *data, int len)
 		Serial.println("Default color Command");
 		index = 2;
 		indexStart = index;
+		temp = 0;
 		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
 		{
 			div = div /10;
@@ -567,12 +568,17 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 0 || temp > 255)
+		if (temp < 0 || temp >= 255)
+		{
+			Serial.print(temp);
+			Serial.println(" Red color out of range 0 < color <= 255");
 			return false;
+		}
 		defaultRed = (uint8)temp;
 		index++;
 		div = 1000;
 		indexStart = index;
+		temp = 0;
 		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
 		{
 			div = div /10;
@@ -580,12 +586,17 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 0 || temp > 255)
+		if (temp < 0 || temp >= 255)
+		{
+			Serial.print(temp);
+			Serial.println(" Blue color out of range 0 < color <= 255");
 			return false;
+		}
 		defaultBlue = (uint8)temp;
 		index++;
 		div = 1000;
 		indexStart = index;
+		temp = 0;
 		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
 		{
 			div = div /10;
@@ -593,12 +604,17 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 0 || temp > 255)
+		if (temp < 0 || temp >= 255)
+		{
+			Serial.print(temp);
+			Serial.println(" Green color out of range 0 < color <= 255");
 			return false;
+		}
 		defaultGreen = (uint8)temp;
 		index++;
 		div = 1000;
 		indexStart = index;
+		temp = 0;
 		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
 		{
 			div = div /10;
@@ -606,12 +622,17 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 0 || temp > 255)
+		if (temp < 0 || temp >= 255)
+		{
+			Serial.print(temp);
+			Serial.println(" Intensity out of range 0 < intensity <= 255");
 			return false;
+		}
 		defaultIntensity = (uint8)temp;
 		index++;
 		div = 1000;
 		indexStart = index;
+		temp = 0;
 		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
 		{
 			div = div /10;
@@ -619,11 +640,17 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 0 || temp > NUMPIXELS_1)
+		if (temp < 0 || temp >= NUMPIXELS_1)
+		{
+			Serial.print(temp);
+			Serial.print(" Start position out of range 0 < pos <= ");
+			Serial.println(NUMPIXELS_1);
 			return false;
+		}
 		backgroundStart = (uint8)temp;		index++;
 		div = 1000;
 		indexStart = index;
+		temp = 0;
 		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
 		{
 			div = div /10;
@@ -631,8 +658,13 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp <= backgroundStart || temp < 0 || temp > NUMPIXELS_1)
+		if (temp < 0 || temp >= NUMPIXELS_1)
+		{
+			Serial.print(temp);
+			Serial.print(" End position out of range 0 < pos <= ");
+			Serial.println(NUMPIXELS_1);
 			return false;
+		}
 		backgroundEnd = (uint8)temp;		
 		Serial.print("Start LED: ");
 		Serial.print(backgroundStart);
@@ -659,9 +691,12 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 0 || temp > 255)
+		if (temp < 0 || temp >= 255)
+		{
+			Serial.print(temp);
+			Serial.println(" Intensity out of range 0 < intensity <= 255");
 			return false;
-		
+		}
 		Serial.print("Max Intensity: ");
 		Serial.println(temp);
 		maxIntensity = temp;
@@ -678,9 +713,12 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		temp = temp / div;
-		if (temp < 30 || temp > 999)
+		if (temp < 30 || temp >= 999)
+		{
+			Serial.print(temp);
+			Serial.println(" Intensity out of range 30 < delay <= 999");
 			return false;
-		
+		}
 		Serial.print("Speed is set to: ");
 		Serial.print(temp);
 		Serial.println("ms");
@@ -690,9 +728,18 @@ bool parseSerialData(char *data, int len)
 	case 'C':
 		Serial.println("Configure Command");
 		if (row < 1 || row > 3)
+		{
+			Serial.print(row);
+			Serial.println(" Row position out of range 1 =< pos =< 3");
 			return false;
-		if (site < 1 || site > TESTAREAS)
+		}
+		if (site < 1 || site > site)
+		{
+			Serial.print(site);
+			Serial.print(" Site position out of range 1 =< pos =< ");
+			Serial.println(site);
 			return false;
+		}
 		index = 6;
 		indexStart = index;
 		while(data[index] != ':' && data[index] >= '0' && data[index] <= '9' && div > 5)
@@ -702,8 +749,13 @@ bool parseSerialData(char *data, int len)
 			index++;
 		}
 		ledStart = ledStart / div;
-		if (ledStart < 0 || ledStart > NUMPIXELS_1)
+		if (ledStart < 0 || ledStart >= NUMPIXELS_1)
+		{
+			Serial.print(ledStart);
+			Serial.print(" Start position out of range 0 > pos >= ");
+			Serial.println(NUMPIXELS_1);
 			return false;
+		}
 		index++;
 		indexStart = index;
 		div = 1000;
@@ -715,10 +767,15 @@ bool parseSerialData(char *data, int len)
 		}
 		ledEnd = ledEnd / div;
 
-		if (ledEnd < ledStart)
+		if (ledEnd < 0 || ledEnd >= NUMPIXELS_1 || ledEnd < ledStart)
+		{
+			Serial.print(ledEnd);
+			Serial.print(" End position out of range 0 > pos >= ");
+			Serial.println(NUMPIXELS_1);
+			Serial.print("End position must be larger than start position ");
+			Serial.println(ledStart);
 			return false;
-		if (ledEnd < 0 || ledEnd > NUMPIXELS_1)
-			return false;
+		}
 		Serial.print("Row: ");
 		Serial.print(row);
 		Serial.print(" Site: ");
@@ -747,12 +804,25 @@ bool parseSerialData(char *data, int len)
 	case 'S':
 		Serial.println("Set Command");
 		if (row < 1 || row > 3)
+		{
+			Serial.print(row);
+			Serial.println(" Row position out of range 1 =< pos =< 3");
 			return false;
-		if (site < 1 || site > TESTAREAS)
+		}
+		if (site < 1 || site > site)
+		{
+			Serial.print(site);
+			Serial.print(" Site position out of range 1 =< pos =< ");
+			Serial.println(site);
 			return false;
+		}
 		mode =  data[6] - '0';
-		if (mode < 0 || mode > 5)
+		if (mode < 1 || mode > 5)
+		{
+			Serial.print(row);
+			Serial.println(" Mode out of range 1 =< pos =< 5");
 			return false;
+		}
 		switch (row)
 		{
 		case 1:
