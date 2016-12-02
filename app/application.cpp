@@ -35,13 +35,13 @@ int StripColor =0;
 int StripNo=0;
 int ChaseCycle=0;
 int TheaterChaseQ=0;
-int maxIntensity = 255;
+int maxIntensity = 100;
 bool inDemoMode = true;
 
 uint8 defaultRed = 255;
 uint8 defaultGreen = 255;
-uint8 defaultBlue = 255;
-uint8 defaultIntensity = 50;
+uint8 defaultBlue = 170;
+uint8 defaultIntensity = 35;
 
 int UpdateDirection=0;
 int UpdateState=0;
@@ -417,7 +417,7 @@ void InitDemo2() {
 	if (!inDemoMode)
 	{
 		StripDemoTimer.initializeMs(5000, StartDemo2).start();  //start demo
-		ColorWipeTimer.initializeMs(35, UpdatePixels).start();  //start demo
+		ColorWipeTimer.initializeMs(45, UpdatePixels).start();  //start demo
 		return;
 	}
 
@@ -469,7 +469,7 @@ void InitDemo2() {
         break;
     default:
     	StripDemoTimer.initializeMs(5000, StartDemo2).start();  //start demo
-    	ColorWipeTimer.initializeMs(35, UpdatePixels).start();  //start demo
+    	ColorWipeTimer.initializeMs(45, UpdatePixels).start();  //start demo
 		break;
 	}
 	wdt_feed();
