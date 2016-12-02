@@ -13,7 +13,7 @@
 #define PIN            4
 
 // How many NeoPixels are attached to the Esp8266?
-#define NUMPIXELS_1      247
+#define NUMPIXELS_1      250
 #define NUMPIXELS_2      NUMPIXELS_1
 #define NUMPIXELS_3      NUMPIXELS_1
 
@@ -37,6 +37,9 @@ int ChaseCycle=0;
 int TheaterChaseQ=0;
 int maxIntensity = 100;
 bool inDemoMode = true;
+
+int backgroundStart = 3;
+int backgroundEnd = 247;
 
 uint8 defaultRed = 255;
 uint8 defaultGreen = 255;
@@ -203,12 +206,22 @@ void UpdatePixels() {
 	uint8 ledvalueB = LED_DEFAULT(defaultBlue);
 	for (uint16_t i = 0; i < strip1.numPixels(); i++)
 	{
+		if (i > backgroundStart && i < backgroundStart)
+		{
 		if (i < strip1.numPixels())
 			strip1.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
 		if (i < strip2.numPixels())
 			strip2.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
 		if (i < strip3.numPixels())
 			strip3.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
+		} else {
+		if (i < strip1.numPixels())
+			strip1.setPixelColor(i,0,0,0);
+		if (i < strip2.numPixels())
+			strip2.setPixelColor(i,0,0,0);
+		if (i < strip3.numPixels())
+			strip3.setPixelColor(i,0,0,0);
+		}
 	}
 	UpdateStrip(&strip1, testareas1);
 	UpdateStrip(&strip2, testareas2);
