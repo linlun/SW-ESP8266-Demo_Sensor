@@ -511,27 +511,38 @@ void connect_Fail()
 	WifiStation.waitConnection(connect_Ok, 10, connect_Fail); // Repeat and check again
 }
 
+void printSerialHelp()
+{
+	Serial.println("Available commands:");
+	Serial.println("\tU:123");
+	Serial.println("\t   Configure animation speed, default is 35 ms (range 35 to 999)");
+	
+	Serial.println("\tU:123");
+	Serial.println("\t   Configure animation speed, default is 35 ms (range 35 to 999)");
+	
+	Serial.println("\tD:123:223:43:50:3:247");
+	Serial.println("\t   Configure background color to red=123, green=223, blue=43 with"
+	Serial.pringln("\t   max intensity scaled to 50, starting at LED 3 and ending at LED 247");
+	
+	Serial.println("\tC:1:2:100:200");
+	Serial.println("\t   Configure row 1 (range 1 to 3) site 2 (range 0 to 9), led start 100 led end 200");
+	
+	Serial.println("\tS:1:2:4");
+	Serial.println("\t   Set mode 4 (TestState_Ok) on row 1 (range 1 to 3) site 2 (range 0 to 9)");
+	Serial.println("\t    Modes:");
+	Serial.println("\t     TestState_Off = 0");
+	Serial.println("\t     TestState_On = 1");
+	Serial.println("\t     TestState_On2 = 2");
+	Serial.println("\t     TestState_Unstable = 3");
+	Serial.println("\t     TestState_Ok = 4");
+	Serial.println("\t     TestState_On3 = 5");
+	
+	Serial.println("\tI:255");
+	Serial.println("\t   Set Max intensity to value (0 to 255)");
+}
 
 bool parseSerialData(char *data, int len)
 {
-	/*
-	 * U:123
-	 *	configure animation speed, default is 35 ms (range 35 to 999)
-	 * D:123:223:43:50
-	 *	configure backgorund color to red=123, green=223, blue=43 with max intensity scaled to 50
-	 * C:1:2:100:200
-	 *	configure row 1 (range 1 to 3) site 2 (range 0 to 9), led start 100 led end 200
-	 * S:1:2:4
-	 *  Set mode 4 (TestState_Ok) on row 1 (range 1 to 3) site 2 (range 0 to 9)
-	 *   TestState_Off = 0,
-	 *   TestState_On = 1,
-	 *   TestState_On2 = 2,
-	 *   TestState_Unstable = 3,
-	 *   TestState_Ok = 4,
-	 *   TestState_On3 = 5,
-	 * I:255
-	 *	Set Max intensity to value (0 to 255)
-	 */
 	if (len < 3)
 		return false;
 	int row = data[2] - '0';
@@ -555,7 +566,7 @@ bool parseSerialData(char *data, int len)
 			temp += div*(data[index] - '0');
 			index++;
 		}
-		ledStart = temp / div;
+		temp = temp / div;
 		if (temp < 0 || temp > 255)
 			return false;
 		defaultRed = (uint8)temp;
@@ -568,7 +579,7 @@ bool parseSerialData(char *data, int len)
 			temp += div*(data[index] - '0');
 			index++;
 		}
-		ledStart = temp / div;
+		temp = temp / div;
 		if (temp < 0 || temp > 255)
 			return false;
 		defaultBlue = (uint8)temp;
@@ -581,7 +592,7 @@ bool parseSerialData(char *data, int len)
 			temp += div*(data[index] - '0');
 			index++;
 		}
-		ledStart = temp / div;
+		temp = temp / div;
 		if (temp < 0 || temp > 255)
 			return false;
 		defaultGreen = (uint8)temp;
@@ -594,11 +605,39 @@ bool parseSerialData(char *data, int len)
 			temp += div*(data[index] - '0');
 			index++;
 		}
-		ledStart = temp / div;
+		temp = temp / div;
 		if (temp < 0 || temp > 255)
 			return false;
 		defaultIntensity = (uint8)temp;
-		
+		index++;
+		div = 1000;
+		indexStart = index;
+		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
+		{
+			div = div /10;
+			temp += div*(data[index] - '0');
+			index++;
+		}
+		temp = temp / div;
+		if (temp < 0 || temp > NUMPIXELS_1)
+			return false;
+		backgroundStart = (uint8)temp;		index++;
+		div = 1000;
+		indexStart = index;
+		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
+		{
+			div = div /10;
+			temp += div*(data[index] - '0');
+			index++;
+		}
+		temp = temp / div;
+		if (temp <= backgroundStart || temp < 0 || temp > NUMPIXELS_1)
+			return false;
+		backgroundEnd = (uint8)temp;		
+		Serial.print("Start LED: ");
+		Serial.print(backgroundStart);
+		Serial.print("End LED: ");
+		Serial.print(backgroundEnd);
 		Serial.print("Red: ");
 		Serial.print(defaultRed);
 		Serial.print(" Green: ");
@@ -793,7 +832,10 @@ void onData(Stream& stream, char arrivedChar, unsigned short availableCharsCount
 					}
 					parseSerialData(receivedText, charReceived -1);
 				}
+			} else {
+				printSerialHelp();
 			}
+			
 			Serial.println("<New line received>");
 			for (int i = 0; i < (charReceived -1); i++)
 			{
