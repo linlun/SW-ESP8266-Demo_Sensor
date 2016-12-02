@@ -547,6 +547,7 @@ bool parseSerialData(char *data, int len)
 			return false;
 		defaultRed = (uint8)temp;
 		index++;
+		div = 1000;
 		indexStart = index;
 		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
 		{
@@ -559,6 +560,7 @@ bool parseSerialData(char *data, int len)
 			return false;
 		defaultBlue = (uint8)temp;
 		index++;
+		div = 1000;
 		indexStart = index;
 		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
 		{
@@ -571,6 +573,7 @@ bool parseSerialData(char *data, int len)
 			return false;
 		defaultGreen = (uint8)temp;
 		index++;
+		div = 1000;
 		indexStart = index;
 		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
 		{
