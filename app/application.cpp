@@ -5,12 +5,12 @@
 
 // If you want, you can define WiFi settings globally in Eclipse Environment Variables
 #ifndef WIFI_SSID
-	#define WIFI_SSID "QGUEST" // Put you SSID and Password here
-	#define WIFI_PWD "shortpencil21"
+	#define WIFI_SSID "ssid" // Put you SSID and Password here
+	#define WIFI_PWD "pass"
 #endif
 
-#define WIFI_SSID_2 "QGUEST" // Put you SSID and Password here
-	#define WIFI_PWD_2 "shortpencil21"
+#define WIFI_SSID_2 "ssid" // Put you SSID and Password here
+#define WIFI_PWD_2 "pass"
 
 HttpServer server;
 BssList networks;
