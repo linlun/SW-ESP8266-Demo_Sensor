@@ -1,1004 +1,530 @@
 #include <user_config.h>
-#include <SmingCore/SmingCore.h>
+#include "SmingCore.h"
+#include <AppSettings.h>
+#include <config.h>
 
-#include <Adafruit_NeoPixel/Adafruit_NeoPixel.h>
-#include <math.h>
+// If you want, you can define WiFi settings globally in Eclipse Environment Variables
+#ifndef WIFI_SSID
+	#define WIFI_SSID "QGUEST" // Put you SSID and Password here
+	#define WIFI_PWD "shortpencil21"
+#endif
 
-// Which pin on the Esp8266 is connected to the NeoPixels?
-#define PIN1            15
-#define PIN2            4
-#define PIN3            5
+#define WIFI_SSID_2 "QGUEST" // Put you SSID and Password here
+	#define WIFI_PWD_2 "shortpencil21"
 
-// Which pin on the Esp8266 is connected to the NeoPixels?
-#define PIN            4
+HttpServer server;
+BssList networks;
+String network, password;
+String mqtt_client;
+rBootHttpUpdate* otaUpdater = 0;
 
-// How many NeoPixels are attached to the Esp8266?
-#define NUMPIXELS_1      250
-#define NUMPIXELS_2      NUMPIXELS_1
-#define NUMPIXELS_3      NUMPIXELS_1
+// Forward declarations
+void startMqttClient();
+void onMessageReceived(String topic, String message);
+Timer procTimer;
+Timer SendValueTimer;
+// MQTT client
+// For quick check you can use: http://www.hivemq.com/demos/websocket-client/ (Connection= test.mosquitto.org:8080)
+MqttClient *mqtt;
+bool messageSentByMe = false;
+Timer indicationTimer;
 
-// How many NeoPixels are attached to the Esp8266?
-#define TESTAREAS      10
-
-Adafruit_NeoPixel strip1 = Adafruit_NeoPixel(NUMPIXELS_1, PIN1, NEO_GRB );
-Adafruit_NeoPixel strip2 = Adafruit_NeoPixel(NUMPIXELS_2, PIN2, NEO_GRB );
-Adafruit_NeoPixel strip3 = Adafruit_NeoPixel(NUMPIXELS_3, PIN3, NEO_GRB );
-
-void StartDemo(void);
-
-Timer StripDemoTimer;
-Timer ColorWipeTimer;
-Timer TheaterChaseTimer;
-
-int StripDemoType = 0;
-int StripColor =0;
-int StripNo=0;
-int ChaseCycle=0;
-int TheaterChaseQ=0;
-int maxIntensity = 100;
-bool inDemoMode = true;
-
-int backgroundStart = 3;
-int backgroundEnd = 247;
-
-uint8 defaultRed = 255;
-uint8 defaultGreen = 255;
-uint8 defaultBlue = 170;
-uint8 defaultIntensity = 35;
-
-int UpdateDirection=0;
-int UpdateState=0;
-
-#define LED(intensity)	((uint8)((((float)intensity)*maxIntensity)/255.0))
-#define LED_DEFAULT(intensity)	((uint8)((((float)intensity)*defaultIntensity)/255.0))
-
-enum TestState
-{
-	TestState_Off = 0,
-	TestState_On = 1,
-	TestState_On2 = 2,
-	TestState_Failed = 3,
-	TestState_Ok = 4,
-	TestState_On3 = 5,
-	TestState_Unstable = 6,
-};
+#define INDICATION_DISCONNECTED	0u
+#define INDICATION_CONNECTED	1u
+#define INDICATION_LUNCH		2u
+#define INDICATION_LUNCH_LATE	3u
+uint8 indicationState = INDICATION_DISCONNECTED;
 
 
-class testarea {
-  public:
-	testarea();
-	testarea(int start, int end);
-	void setState(TestState state);
-	TestState getState(void);
-	int start;
-	int end;
-  private:
-	TestState state;
-};
-testarea::testarea()
-{
-	this->start = 0;
-	this->end = 0;
-	this->state = TestState_Off;
-}
-testarea::testarea(int start, int end)
-{
-	this->start = start;
-	this->end = end;
-	this->state = TestState_Off;
-}
-void testarea::setState(TestState state)
-{
-	this->state = state;
+void ShowInfo() {
+    Serial.printf("\r\nSDK: v%s\r\n", system_get_sdk_version());
+    Serial.printf("Free Heap: %d\r\n", system_get_free_heap_size());
+    Serial.printf("CPU Frequency: %d MHz\r\n", system_get_cpu_freq());
+    Serial.printf("System Chip ID: %x\r\n", system_get_chip_id());
+    Serial.printf("SPI Flash ID: %x\r\n", spi_flash_get_id());
+    //Serial.printf("SPI Flash Size: %d\r\n", (1 << ((spi_flash_get_id() >> 16) & 0xff)));
 }
 
-TestState testarea::getState()
-{
-	return this->state ;
-}
-
-testarea testareas1[TESTAREAS];
-testarea testareas2[TESTAREAS];
-testarea testareas3[TESTAREAS];
-
-void UpdateStrip(Adafruit_NeoPixel *strip, testarea *testareas)
-{
-	for (int i = 0; i < TESTAREAS; i++)
-	{
-		if ((testareas[i].start + testareas[i].end) != 0)
-		{
-			switch (testareas[i].getState())
-			{
-			case TestState_Failed:
-			{
-				uint8 ledvalue1 = LED(255);
-				for (uint16_t j = testareas[i].start; j < testareas[i].end; j++)
-				{
-					strip->setPixelColor(j,ledvalue1,0,0);
-				}
-			}
-			break;
-			case TestState_Unstable:
-			{
-				uint8 ledvalue1 = LED(255);
-				uint8 ledvalue2 = LED(90);
-				for (uint16_t j = testareas[i].start; j < testareas[i].end; j++)
-				{
-					strip->setPixelColor(j,ledvalue1,ledvalue2,0);
-				}
-			}
-			break;
-			case TestState_Ok:
-			{
-				uint8 ledvalue1 = LED(255);
-				for (uint16_t j = testareas[i].start; j < testareas[i].end; j++)
-				{
-					strip->setPixelColor(j,0,ledvalue1,0);
-				}
-			}
-			break;
-			case TestState_On:
-			{
-				float numLedsOn = ((float)(testareas[i].end - testareas[i].start)*UpdateState)/(20.0*2);
-				uint8 ledvalue1 = LED(255);
-				for (uint16_t j = testareas[i].start; j < testareas[i].end; j++)
-				{
-					if (j < ceil(testareas[i].start + numLedsOn) || j > floor(testareas[i].end - numLedsOn))
-					{
-						strip->setPixelColor(j,0,0,ledvalue1);
-					} else {
-						strip->setPixelColor(j,0,0,0);
-					}
-				}
-			}
-			break;
-			case  TestState_On3:
-			{
-				float numLedsOn = ((float)(testareas[i].end - testareas[i].start)/5);
-				float numLedsStart = (((float)(testareas[i].end - testareas[i].start)-numLedsOn)*UpdateState)/(20.0);
-				uint8 ledvalue1 = LED(255);
-				for (uint16_t j = testareas[i].start; j < testareas[i].end; j++)
-				{
-					float intensity = (float)ledvalue1;
-					intensity = intensity - ((UpdateState*(intensity*0.9))/20.0);
-					for (uint16_t j = testareas[i].start; j < testareas[i].end; j++)
-					{
-						strip->setPixelColor(j,0,0,(uint8)intensity);
-					}
-				}
-			}
-			break;
-			case TestState_On2:
-			{
-				float numLedsOn = ((float)(testareas[i].end - testareas[i].start)*UpdateState)/(20.0*2);
-				uint8 ledvalue1 = LED(255);
-				for (uint16_t j = testareas[i].start; j < testareas[i].end; j++)
-				{
-					if (j < ceil(testareas[i].start + numLedsOn) || j > floor(testareas[i].end - numLedsOn))
-					{
-						strip->setPixelColor(j,0,0,ledvalue1);
-					} else {
-						strip->setPixelColor(j,0,0,0);
-					}
-				}
-			}
-			break;
-			default:
-			{
-				uint8 ledvalueR = LED_DEFAULT(defaultRed);
-				uint8 ledvalueG = LED_DEFAULT(defaultGreen);
-				uint8 ledvalueB = LED_DEFAULT(defaultBlue);
-				for (uint16_t j = testareas[i].start; j < testareas[i].end; j++)
-				{
-					strip->setPixelColor(j,ledvalueR,ledvalueG,ledvalueB);
-				}
-			}
-			break;
+void serialCallBack(Stream& stream, char arrivedChar, unsigned short availableCharsCount) {
+	if (arrivedChar == '\n') {
+		char str[availableCharsCount];
+		for (int i = 0; i < availableCharsCount; i++) {
+			str[i] = stream.read();
+			if (str[i] == '\r' || str[i] == '\n') {
+				str[i] = '\0';
 			}
 		}
-	}
-}
-
-void UpdatePixels() {
-
-	uint8 ledvalueR = LED_DEFAULT(defaultRed);
-	uint8 ledvalueG = LED_DEFAULT(defaultGreen);
-	uint8 ledvalueB = LED_DEFAULT(defaultBlue);
-	for (uint16_t i = 0; i < strip1.numPixels(); i++)
-	{
-		if (i > backgroundStart && i < backgroundEnd)
-		{
-			if (i < strip1.numPixels())
-				strip1.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
-			if (i < strip2.numPixels())
-				strip2.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
-			if (i < strip3.numPixels())
-				strip3.setPixelColor(i,ledvalueR,ledvalueG,ledvalueB);
+		
+		if (!strcmp(str, "connect")) {
+			// connect to wifi
+			WifiStation.config(WIFI_SSID, WIFI_PWD);
+			WifiStation.enable(true);
+		} else if (!strcmp(str, "ip")) {
+			Serial.printf("ip: %s mac: %s\r\n", WifiStation.getIP().toString().c_str(), WifiStation.getMAC().c_str());
+		} else if (!strcmp(str, "ota")) {
+			//OtaUpdate();
+		} else if (!strcmp(str, "switch")) {
+			//Switch();
+		} else if (!strcmp(str, "restart")) {
+			System.restart();
+		} else if (!strcmp(str, "ls")) {
+			Vector<String> files = fileList();
+			Serial.printf("filecount %d\r\n", files.count());
+			for (unsigned int i = 0; i < files.count(); i++) {
+				Serial.println(files[i]);
+			}
+		} else if (!strcmp(str, "cat")) {
+			Vector<String> files = fileList();
+			if (files.count() > 0) {
+				Serial.printf("dumping file %s:\r\n", files[0].c_str());
+				Serial.println(fileGetContent(files[0]));
+			} else {
+				Serial.println("Empty spiffs!");
+			}
+		} else if (!strcmp(str, "info")) {
+			ShowInfo();
+		} else if (!strcmp(str, "help")) {
+			Serial.println();
+			Serial.println("available commands:");
+			Serial.println("  help - display this message");
+			Serial.println("  ip - show current ip address");
+			Serial.println("  connect - connect to wifi");
+			Serial.println("  restart - restart the esp8266");
+			//Serial.println("  switch - switch to the other rom and reboot");
+			//Serial.println("  ota - perform ota update, switch rom and reboot");
+			Serial.println("  info - show esp8266 info");
+			Serial.println("  sl - Sleep for 5 seconds");
+#ifndef DISABLE_SPIFFS
+			Serial.println("  ls - list files in spiffs");
+			Serial.println("  cat - show first file in spiffs");
+#endif
+			Serial.println();
+		} else if (!strcmp(str, "sl")) {
+			Serial.println("Going to sleep");
+			delay(500);
+			system_deep_sleep(5000000);
+			delay(500);
+			Serial.println("Wakeing up");
 		} else {
-			if (i < strip1.numPixels())
-				strip1.setPixelColor(i,0,0,0);
-			if (i < strip2.numPixels())
-				strip2.setPixelColor(i,0,0,0);
-			if (i < strip3.numPixels())
-				strip3.setPixelColor(i,0,0,0);
+			Serial.println("unknown command");
 		}
-	}
-	UpdateStrip(&strip1, testareas1);
-	UpdateStrip(&strip2, testareas2);
-	wdt_feed();
-	UpdateStrip(&strip3, testareas3);
-	wdt_feed();
-	strip1.show();
-	wdt_feed();
-	strip2.show();
-	wdt_feed();
-	strip3.show();
-
-	if (UpdateState >= 20)
-	{
-		UpdateDirection=0;
-	} else if (UpdateState <= 0)
-	{
-		UpdateDirection=1;
-	}
-	if (UpdateDirection)
-	{
-		UpdateState++;
-	} else
-	{
-		UpdateState--;
-	}
-}
-void StartDemo2() {
-	if (!inDemoMode)
-		return;
-	Serial.print("NeoPixel Demo type: ");
-	Serial.println(StripDemoType);
-   	StripNo = 0;   //start from led index 0
-
-   	UpdateDirection=0;
-   	UpdateState=0;
-   	switch(StripDemoType){           // select demo type
-   	    case 0:
-   	    	testareas1[0].setState(TestState_Unstable);
-   	    	testareas1[1].setState(TestState_Ok);
-   	    	testareas1[4].setState(TestState_On);
-   	    	testareas1[2].setState(TestState_On2);
-   	    	testareas1[3].setState(TestState_Ok);
-   	    	testareas1[5].setState(TestState_Unstable);
-   			testareas1[6].setState(TestState_Ok);
-   			testareas1[7].setState(TestState_On);
-   			testareas1[8].setState(TestState_On3);
-   			testareas1[9].setState(TestState_Ok);
-   	    	break;
-   	    case 1:
-   			testareas1[0].setState(TestState_Ok);
-   			testareas1[1].setState(TestState_On);
-   			testareas1[4].setState(TestState_Ok);
-   			testareas1[2].setState(TestState_Ok);
-   			testareas1[3].setState(TestState_Unstable);
-   			testareas1[5].setState(TestState_Ok);
-   			testareas1[6].setState(TestState_On);
-   			testareas1[7].setState(TestState_Ok);
-   			testareas1[8].setState(TestState_Ok);
-   			testareas1[9].setState(TestState_Unstable);
-   			break;
-   	    case 2:
-   			testareas1[0].setState(TestState_On);
-   			testareas1[1].setState(TestState_Unstable);
-   			testareas1[4].setState(TestState_On3);
-   			testareas1[2].setState(TestState_Unstable);
-   			testareas1[3].setState(TestState_On);
-   			testareas1[5].setState(TestState_On);
-   			testareas1[6].setState(TestState_Unstable);
-   			testareas1[7].setState(TestState_On2);
-   			testareas1[8].setState(TestState_Unstable);
-   			testareas1[9].setState(TestState_On);
-   			break;
-   	    case 3:
-   			testareas1[0].setState(TestState_Ok);
-   			testareas1[1].setState(TestState_On);
-   			testareas1[4].setState(TestState_Unstable);
-   			testareas1[2].setState(TestState_On2);
-   			testareas1[3].setState(TestState_Ok);
-   			testareas1[5].setState(TestState_Ok);
-   			testareas1[6].setState(TestState_On);
-   			testareas1[7].setState(TestState_Unstable);
-   			testareas1[8].setState(TestState_On2);
-   			testareas1[9].setState(TestState_Ok);
-   			break;
-   	    default:
-   			StripDemoType=0;
-   			break;
-   	}
-   	switch(StripDemoType){           // select demo type
-   	    case 0:
-   	    	testareas2[0].setState(TestState_Unstable);
-   	    	testareas2[1].setState(TestState_Ok);
-   	    	testareas2[4].setState(TestState_On);
-   	    	testareas2[2].setState(TestState_On2);
-   	    	testareas2[3].setState(TestState_Ok);
-   	    	testareas2[5].setState(TestState_Unstable);
-   			testareas2[6].setState(TestState_Ok);
-   			testareas2[7].setState(TestState_On);
-   			testareas2[8].setState(TestState_On2);
-   			testareas2[9].setState(TestState_Ok);
-   	    	break;
-   	    case 1:
-   			testareas2[0].setState(TestState_Ok);
-   			testareas2[1].setState(TestState_On3);
-   			testareas2[4].setState(TestState_Ok);
-   			testareas2[2].setState(TestState_Ok);
-   			testareas2[3].setState(TestState_Unstable);
-   			testareas2[5].setState(TestState_Ok);
-   			testareas2[6].setState(TestState_On);
-   			testareas2[7].setState(TestState_Ok);
-   			testareas2[8].setState(TestState_Ok);
-   			testareas2[9].setState(TestState_Unstable);
-   			break;
-   	    case 2:
-   			testareas2[0].setState(TestState_On);
-   			testareas2[1].setState(TestState_Unstable);
-   			testareas2[4].setState(TestState_On2);
-   			testareas2[2].setState(TestState_Unstable);
-   			testareas2[3].setState(TestState_On);
-   			testareas2[5].setState(TestState_On3);
-   			testareas2[6].setState(TestState_Unstable);
-   			testareas2[7].setState(TestState_On2);
-   			testareas2[8].setState(TestState_Unstable);
-   			testareas2[9].setState(TestState_On);
-   			break;
-   	    case 3:
-   			testareas2[0].setState(TestState_Ok);
-   			testareas2[1].setState(TestState_On);
-   			testareas2[4].setState(TestState_Unstable);
-   			testareas2[2].setState(TestState_On2);
-   			testareas2[3].setState(TestState_Ok);
-   			testareas2[5].setState(TestState_Ok);
-   			testareas2[6].setState(TestState_On);
-   			testareas2[7].setState(TestState_Unstable);
-   			testareas2[8].setState(TestState_On2);
-   			testareas2[9].setState(TestState_Ok);
-   			break;
-   	    default:
-   			StripDemoType=0;
-   			break;
-   	}
-	switch(StripDemoType){           // select demo type
-		case 0:
-			testareas3[0].setState(TestState_Unstable);
-			testareas3[1].setState(TestState_Ok);
-			testareas3[4].setState(TestState_On);
-			testareas3[2].setState(TestState_On3);
-			testareas3[3].setState(TestState_Ok);
-			testareas3[5].setState(TestState_Unstable);
-			testareas3[6].setState(TestState_Ok);
-			testareas3[7].setState(TestState_On);
-			testareas3[8].setState(TestState_On2);
-			testareas3[9].setState(TestState_Ok);
-			break;
-		case 1:
-			testareas3[0].setState(TestState_Ok);
-			testareas3[1].setState(TestState_On3);
-			testareas3[4].setState(TestState_Ok);
-			testareas3[2].setState(TestState_Ok);
-			testareas3[3].setState(TestState_Unstable);
-			testareas3[5].setState(TestState_Ok);
-			testareas3[6].setState(TestState_On3);
-			testareas3[7].setState(TestState_Ok);
-			testareas3[8].setState(TestState_Ok);
-			testareas3[9].setState(TestState_Unstable);
-			break;
-		case 2:
-			testareas3[0].setState(TestState_On);
-			testareas3[1].setState(TestState_Failed);
-			testareas3[4].setState(TestState_On2);
-			testareas3[2].setState(TestState_Unstable);
-			testareas3[3].setState(TestState_On);
-			testareas3[5].setState(TestState_On);
-			testareas3[6].setState(TestState_Unstable);
-			testareas3[7].setState(TestState_On2);
-			testareas3[8].setState(TestState_Unstable);
-			testareas3[9].setState(TestState_On);
-			break;
-		case 3:
-			testareas3[0].setState(TestState_Ok);
-			testareas3[1].setState(TestState_On3);
-			testareas3[4].setState(TestState_Unstable);
-			testareas3[2].setState(TestState_On3);
-			testareas3[3].setState(TestState_Ok);
-			testareas3[5].setState(TestState_Ok);
-			testareas3[6].setState(TestState_On);
-			testareas3[7].setState(TestState_Unstable);
-			testareas3[8].setState(TestState_On2);
-			testareas3[9].setState(TestState_Ok);
-			break;
-		default:
-			StripDemoType=0;
-			break;
-	}
-	StripDemoType++;
-	if (StripDemoType > 3)
-	{
-		StripDemoType = 0;
 	}
 }
 
-
-
-void InitDemo2() {
-	if (!inDemoMode)
-	{
-		StripDemoTimer.initializeMs(5000, StartDemo2).start();  //start demo
-		ColorWipeTimer.initializeMs(45, UpdatePixels).start();  //start demo
-		return;
-	}
-
-	Serial.print("NeoPixel init step: ");
-	Serial.println(StripDemoType);
-	static int StripInitType = 0;
-
-	switch(StripInitType){           // select demo type
-    case 0:
-    	/* first test */
-		for (uint16_t i = 0; i < strip1.numPixels(); i++)
-		{
-			strip1.setPixelColor(i,0,0,255);
-			strip2.setPixelColor(i,0,255,0);
-			strip3.setPixelColor(i,255,0,0);
-		}
-		break;
-    case 1:
-		for (uint16_t i = 0; i < strip1.numPixels(); i++)
-		{
-			strip2.setPixelColor(i,0,0,255);
-			strip3.setPixelColor(i,0,255,0);
-			strip1.setPixelColor(i,255,0,0);
-		}
-		break;
-    case 2:
-    	for (uint16_t i = 0; i < strip1.numPixels(); i++)
-		{
-			strip3.setPixelColor(i,0,0,255);
-			strip1.setPixelColor(i,0,255,0);
-			strip2.setPixelColor(i,255,0,0);
-		}
-    	break;
-    case 3:
-		for (uint16_t i = 0; i < strip1.numPixels(); i++)
-		{
-			strip1.setPixelColor(i,255,255,255);
-			strip2.setPixelColor(i,255,255,255);
-			strip3.setPixelColor(i,255,255,255);
-		}
-		break;
-    case 4:
-    	for (uint16_t i = 0; i < strip1.numPixels(); i++)
-		{
-			strip1.setPixelColor(i,255-(i%255),(i+128)%255,i%255);
-			strip2.setPixelColor(i,255-(i%255),(i+128)%255,i%255);
-			strip3.setPixelColor(i,255-(i%255),(i+128)%255,i%255);
-		}
-        break;
-    default:
-    	StripDemoTimer.initializeMs(5000, StartDemo2).start();  //start demo
-    	ColorWipeTimer.initializeMs(45, UpdatePixels).start();  //start demo
-		break;
-	}
-	wdt_feed();
-	strip1.show();
-	strip2.show();
-	wdt_feed();
-	strip3.show();
-	StripInitType++;
+// Check for MQTT Disconnection
+void checkMQTTDisconnect(TcpClient& client, bool flag){
+	indicationState = INDICATION_DISCONNECTED;
+	// Called whenever MQTT connection is failed.
+	if (flag == true)
+		Serial.println("MQTT Broker Disconnected!!");
+	else
+		Serial.println("MQTT Broker Unreachable!!");
+	WifiAccessPoint.enable(true);
+	// Restart connection attempt after few seconds
+	procTimer.initializeMs(10 * 1000, startMqttClient).start(); // every 2 seconds
 }
-
-
-
-// Will be called when WiFi station was connected to AP
-void connect_Ok()
+void SendValue()
 {
-	Serial.print("I'm CONNECTED - ");
-	Serial.println(WifiStation.getIP().toString());
+	static float oldValue = 0;
+	uint16 value = analogRead(17);
+	Serial.println(value);
+	float valuef = value/20.0;
+	if (oldValue != valuef)
+	{
+	if (mqtt->getConnectionState() == eTCS_Connected)
+		mqtt->publish(mqtt_client + "/SensorValue", String(valuef)); // or publishWithQoS
+	}
+	oldValue = valuef;
+}
+void indicationFunction()
+{
+	static uint32 buttonCounter = 0;
+	static uint32 counter = 0;
+	static uint32 counter_short = 0;
 
-	//You can put here other job like web,tcp etc.
+	//Check Button
+	if (digitalRead(PIN_BUTTON))
+	{
+		buttonCounter++;
+		if (buttonCounter ==6)
+		{
+			
+		}
+	} else {
+		buttonCounter = 0;
+	}
+}
+
+// Publish our message
+void publishMessage()
+{
+	if (mqtt->getConnectionState() != eTCS_Connected)
+		startMqttClient(); // Auto reconnect
+
+	mqtt->publish(mqtt_client + "/Status", "Online"); // or publishWithQoS
+}
+bool heater;
+float currentTemp;
+// Callback for messages, arrived from MQTT server
+void onMessageReceived(String topic, String message)
+{
+	if (topic.endsWith("Firmware"))
+	{
+		if (message.equals("UPDATE"))
+		{
+			//OtaUpdate();
+		}
+	}
+	if (topic.endsWith("SensorValue"))
+	{
+		if (topic.equals(mqtt_client + "/SensorValue"))
+		{
+			// My own message
+
+		} else {
+			messageSentByMe = false;
+		}
+		currentTemp = message.toFloat();
+		//currentTemp = value/20.0;
+
+	}
+	if (topic.endsWith("Heater"))
+		{
+			if (topic.equals(mqtt_client + "/Heater"))
+			{
+				// My own message
+
+			} else {
+				messageSentByMe = false;
+			}
+			if (message.equals("ON"))
+			{
+				heater = true;
+				//indicationState = INDICATION_LUNCH;
+		//		digitalWrite(PIN_GREEN,1); //Green
+	//digitalWrite(PIN_BLUE,1); //Blue
+	digitalWrite(PIN_RED,1); //Red
+			}
+			else
+			{
+				heater = false;
+				//indicationState = INDICATION_CONNECTED;
+				digitalWrite(PIN_GREEN,0); //Green
+	digitalWrite(PIN_BLUE,0); //Blue
+	digitalWrite(PIN_RED,0); //Red
+			}
+		}
+	Serial.print(topic);
+	Serial.print(":\r\n\t"); // Pretify alignment for printing
+	Serial.println(message);
+	WifiAccessPoint.enable(false);
+}
+
+// Run MQTT client
+
+void startMqttClient()
+{
+	/*if (mqtt == null)
+	{
+		mqtt = new MqttClient(MQTT_HOST, MQTT_PORT, onMessageReceived);
+	}
+	*/
+	procTimer.stop();
+	mqtt_client = AppSettings.mqtt_nodeName + "_" + WifiStation.getMAC();
+	if(!mqtt->setWill(mqtt_client + "/Status", "Offline", 1, true)) {
+		debugf("Unable to set the last will and testament. Most probably there is not enough memory on the device.");
+	}
+	mqtt->connect(mqtt_client, MQTT_USERNAME, MQTT_PWD);
+	indicationState = INDICATION_CONNECTED;
+	// Assign a disconnect callback function
+	mqtt->setCompleteDelegate(checkMQTTDisconnect);
+	//mqtt->subscribe(mqtt_client + "/Lunch");
+	mqtt->subscribe("+/SensorValue");
+	mqtt->subscribe("+/Heater");
+	mqtt->subscribe("+/Firmware");
+	mqtt->publish(mqtt_client + "/Status", "Online"); // or publishWithQoS
+}
+// Will be called when WiFi station was connected to AP
+void connectOk()
+{
+	Serial.println("I'm CONNECTED");
+//	ntpDemo = new ntpClientDemo();
+	// Run MQTT client
+	startMqttClient();
+	WifiAccessPoint.enable(false);
+	// Start publishing loop
+	procTimer.initializeMs(20 * 1000, publishMessage).start(); // every 20 seconds
 }
 
 // Will be called when WiFi station timeout was reached
-void connect_Fail()
+void connectFail()
 {
-	Serial.println("I'm NOT CONNECTED!");
-	WifiStation.waitConnection(connect_Ok, 10, connect_Fail); // Repeat and check again
+	Serial.println("I'm NOT CONNECTED. Need help :(");
+	WifiAccessPoint.enable(true);
+	// .. some you code for device configuration ..
 }
 
-void printSerialHelp()
+Timer connectionTimer;
+
+void onIndex(HttpRequest &request, HttpResponse &response)
 {
-	Serial.println("Available commands:");
-	Serial.println("\tU:123");
-	Serial.println("\t   Configure animation speed, default is 35 ms (range 35 to 999)");
-	
-	Serial.println("\tU:123");
-	Serial.println("\t   Configure animation speed, default is 35 ms (range 35 to 999)");
-	
-	Serial.println("\tD:123:223:43:50:3:247");
-	Serial.println("\t   Configure background color to red=123, green=223, blue=43 with");
-	Serial.println("\t   max intensity scaled to 50, starting at LED 3 and ending at LED 247");
-	
-	Serial.println("\tC:1:2:100:200");
-	Serial.println("\t   Configure row 1 (range 1 to 3) site 2 (range 0 to 9), led start 100 led end 200");
-	
-	Serial.println("\tS:1:2:4");
-	Serial.println("\t   Set mode 4 (TestState_Ok) on row 1 (range 1 to 3) site 2 (range 0 to 9)");
-	Serial.println("\t    Modes:");
-	Serial.println("\t     TestState_Off = 0");
-	Serial.println("\t     TestState_On = 1");
-	Serial.println("\t     TestState_On2 = 2");
-	Serial.println("\t     TestState_Unstable = 3");
-	Serial.println("\t     TestState_Ok = 4");
-	Serial.println("\t     TestState_On3 = 5");
-	
-	Serial.println("\tI:255");
-	Serial.println("\t   Set Max intensity to value (0 to 255)");
+	TemplateFileStream *tmpl = new TemplateFileStream("index.html");
+	auto &vars = tmpl->variables();
+	response.sendTemplate(tmpl); // will be automatically deleted
 }
 
-bool parseSerialData(char *data, int len)
+void onIpConfig(HttpRequest &request, HttpResponse &response)
 {
-	if (len < 3)
-		return false;
-	int row = data[2] - '0';
-	int site = data[4] - '0';
-	int ledStart = 0;
-	int ledEnd = 0;
-	int mode = 0;
-	int index = 0;
-	int indexStart = 0;
-	int div = 1000;
-	int temp = 0;
-	switch (data[0])
+	if (request.getRequestMethod() == RequestMethod::POST)
 	{
-	case 'D':
-		Serial.println("Default color Command");
-		index = 2;
-		indexStart = index;
-		temp = 0;
-		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
-		{
-			div = div /10;
-			temp += div*(data[index] - '0');
-			index++;
-		}
-		temp = temp / div;
-		if (temp < 0 || temp > 255)
-		{
-			Serial.print(temp);
-			Serial.println(" Red color out of range 0 < color <= 255");
-			return false;
-		}
-		defaultRed = (uint8)temp;
-		index++;
-		div = 1000;
-		indexStart = index;
-		temp = 0;
-		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
-		{
-			div = div /10;
-			temp += div*(data[index] - '0');
-			index++;
-		}
-		temp = temp / div;
-		if (temp < 0 || temp > 255)
-		{
-			Serial.print(temp);
-			Serial.println(" Blue color out of range 0 < color <= 255");
-			return false;
-		}
-		defaultBlue = (uint8)temp;
-		index++;
-		div = 1000;
-		indexStart = index;
-		temp = 0;
-		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
-		{
-			div = div /10;
-			temp += div*(data[index] - '0');
-			index++;
-		}
-		temp = temp / div;
-		if (temp < 0 || temp > 255)
-		{
-			Serial.print(temp);
-			Serial.println(" Green color out of range 0 < color <= 255");
-			return false;
-		}
-		defaultGreen = (uint8)temp;
-		index++;
-		div = 1000;
-		indexStart = index;
-		temp = 0;
-		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
-		{
-			div = div /10;
-			temp += div*(data[index] - '0');
-			index++;
-		}
-		temp = temp / div;
-		if (temp < 0 || temp > 255)
-		{
-			Serial.print(temp);
-			Serial.println(" Intensity out of range 0 < intensity <= 255");
-			return false;
-		}
-		defaultIntensity = (uint8)temp;
-		index++;
-		div = 1000;
-		indexStart = index;
-		temp = 0;
-		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
-		{
-			div = div /10;
-			temp += div*(data[index] - '0');
-			index++;
-		}
-		temp = temp / div;
-		if (temp < 0 || temp >= NUMPIXELS_1)
-		{
-			Serial.print(temp);
-			Serial.print(" Start position out of range 0 < pos <= ");
-			Serial.println(NUMPIXELS_1);
-			return false;
-		}
-		backgroundStart = (uint8)temp;		index++;
-		div = 1000;
-		indexStart = index;
-		temp = 0;
-		while(data[index] != ':' && data[index] != '\n' && data[index] >= '0' && data[index] <= '9' && div > 5)
-		{
-			div = div /10;
-			temp += div*(data[index] - '0');
-			index++;
-		}
-		temp = temp / div;
-		if (temp < 0 || temp > NUMPIXELS_1)
-		{
-			Serial.print(temp);
-			Serial.print(" End position out of range 0 < pos <= ");
-			Serial.println(NUMPIXELS_1);
-			return false;
-		}
-		backgroundEnd = (uint8)temp;		
-		Serial.print("Start LED: ");
-		Serial.print(backgroundStart);
-		Serial.print("End LED: ");
-		Serial.print(backgroundEnd);
-		Serial.print("Red: ");
-		Serial.print(defaultRed);
-		Serial.print(" Green: ");
-		Serial.print(defaultGreen);
-		Serial.print(" Blue: ");
-		Serial.print(defaultBlue);
-		Serial.print(" Intensity: ");
-		Serial.println(defaultIntensity);
-		return true;
-		break;
-	case 'I':
-		Serial.println("Set Max Intensity Command");
-		index = 2;
-		indexStart = index;
-		while(data[index] != ':' && data[index] != '\n'  && data[index] >= '0' && data[index] <= '9' && div > 5)
-		{
-			div = div /10;
-			temp += div*(data[index] - '0');
-			index++;
-		}
-		temp = temp / div;
-		if (temp < 0 || temp > 255)
-		{
-			Serial.print(temp);
-			Serial.println(" Intensity out of range 0 < intensity <= 255");
-			return false;
-		}
-		Serial.print("Max Intensity: ");
-		Serial.println(temp);
-		maxIntensity = temp;
-		return true;
-		break;
-	case 'U':
-		Serial.println("Set Animation Speed Command");
-		index = 2;
-		indexStart = index;
-		while(data[index] != ':' && data[index] != '\n'  && data[index] >= '0' && data[index] <= '9' && div > 5)
-		{
-			div = div /10;
-			temp += div*(data[index] - '0');
-			index++;
-		}
-		temp = temp / div;
-		if (temp < 30 || temp > 999)
-		{
-			Serial.print(temp);
-			Serial.println(" Intensity out of range 30 < delay <= 999");
-			return false;
-		}
-		Serial.print("Speed is set to: ");
-		Serial.print(temp);
-		Serial.println("ms");
-		ColorWipeTimer.initializeMs(temp, UpdatePixels).start();
-		return true;
-		break;
-	case 'C':
-		Serial.println("Configure Command");
-		if (row < 1 || row > 3)
-		{
-			Serial.print(row);
-			Serial.println(" Row position out of range 1 =< pos =< 3");
-			return false;
-		}
-		if (site < 1 || site > site)
-		{
-			Serial.print(site);
-			Serial.print(" Site position out of range 1 =< pos =< ");
-			Serial.println(site);
-			return false;
-		}
-		index = 6;
-		indexStart = index;
-		while(data[index] != ':' && data[index] >= '0' && data[index] <= '9' && div > 5)
-		{
-			div = div /10;
-			ledStart += div*(data[index] - '0');
-			index++;
-		}
-		ledStart = ledStart / div;
-		if (ledStart < 0 || ledStart >= NUMPIXELS_1)
-		{
-			Serial.print(ledStart);
-			Serial.print(" Start position out of range 0 > pos >= ");
-			Serial.println(NUMPIXELS_1);
-			return false;
-		}
-		index++;
-		indexStart = index;
-		div = 1000;
-		while(data[index] != ':' && data[index] != '\n'  && data[index] >= '0' && data[index] <= '9' && div > 5)
-		{
-			div = div /10;
-			ledEnd += div*(data[index] - '0');
-			index++;
-		}
-		ledEnd = ledEnd / div;
-
-		if (ledEnd < 0 || ledEnd > NUMPIXELS_1 || ledEnd < ledStart)
-		{
-			Serial.print(ledEnd);
-			Serial.print(" End position out of range 0 > pos >= ");
-			Serial.println(NUMPIXELS_1);
-			Serial.print("End position must be larger than start position ");
-			Serial.println(ledStart);
-			return false;
-		}
-		Serial.print("Row: ");
-		Serial.print(row);
-		Serial.print(" Site: ");
-		Serial.print(site);
-		Serial.print(" Start: ");
-		Serial.print(ledStart);
-		Serial.print(" End: ");
-		Serial.println(ledEnd);
-		switch (row)
-		{
-		case 1:
-			testareas1[site].start = ledStart;
-			testareas1[site].end = ledEnd;
-			break;
-		case 2:
-			testareas2[site].start = ledStart;
-			testareas2[site].end = ledEnd;
-			break;
-		case 3:
-			testareas3[site].start = ledStart;
-			testareas3[site].end = ledEnd;
-			break;
-		}
-		return true;
-		break;
-	case 'S':
-		Serial.println("Set Command");
-		if (row < 1 || row > 3)
-		{
-			Serial.print(row);
-			Serial.println(" Row position out of range 1 =< pos =< 3");
-			return false;
-		}
-		if (site < 1 || site > site)
-		{
-			Serial.print(site);
-			Serial.print(" Site position out of range 1 =< pos =< ");
-			Serial.println(site);
-			return false;
-		}
-		mode =  data[6] - '0';
-		if (mode < 1 || mode > 5)
-		{
-			Serial.print(row);
-			Serial.println(" Mode out of range 1 =< pos =< 5");
-			return false;
-		}
-		switch (row)
-		{
-		case 1:
-			testareas1[site].setState((TestState)mode);
-			break;
-		case 2:
-			testareas2[site].setState((TestState)mode);
-			break;
-		case 3:
-			testareas3[site].setState((TestState)mode);
-			break;
-		}
-		Serial.print("Row: ");
-		Serial.print(row);
-		Serial.print(" Site: ");
-		Serial.print(site);
-		Serial.print(" Mode: ");
-		switch (testareas3[site].getState())
-		{
-		case TestState_Unstable:
-			Serial.println("Failed");
-			break;
-		case TestState_Off:
-			Serial.println("Off");
-			break;
-		case TestState_Ok:
-			Serial.println("Ok");
-			break;
-		case TestState_On2:
-			Serial.println("On 2");
-			break;
-		case TestState_On:
-			Serial.println("On");
-			break;
-		case TestState_On3:
-			Serial.println("On 3");
-			break;
-		}
-
-		return true;
-		break;
+		AppSettings.dhcp = request.getPostParameter("dhcp") == "1";
+		AppSettings.ip = request.getPostParameter("ip");
+		AppSettings.netmask = request.getPostParameter("netmask");
+		AppSettings.gateway = request.getPostParameter("gateway");
+		debugf("Updating IP settings: %d", AppSettings.ip.isNull());
+		AppSettings.save();
 	}
 
-	return false;
+	TemplateFileStream *tmpl = new TemplateFileStream("settings.html");
+	auto &vars = tmpl->variables();
+
+	bool dhcp = WifiStation.isEnabledDHCP();
+	vars["dhcpon"] = dhcp ? "checked='checked'" : "";
+	vars["dhcpoff"] = !dhcp ? "checked='checked'" : "";
+
+	if (!WifiStation.getIP().isNull())
+	{
+		vars["ip"] = WifiStation.getIP().toString();
+		vars["netmask"] = WifiStation.getNetworkMask().toString();
+		vars["gateway"] = WifiStation.getNetworkGateway().toString();
+	}
+	else
+	{
+		vars["ip"] = "192.168.1.77";
+		vars["netmask"] = "255.255.255.0";
+		vars["gateway"] = "192.168.1.1";
+	}
+
+	response.sendTemplate(tmpl); // will be automatically deleted
+}
+void onMqttConfig(HttpRequest &request, HttpResponse &response)
+{
+	if (request.getRequestMethod() == RequestMethod::POST)
+	{
+		AppSettings.mqtt_password = request.getPostParameter("password");
+		AppSettings.mqtt_user = request.getPostParameter("user");
+		AppSettings.mqtt_server = request.getPostParameter("adr");
+		AppSettings.mqtt_period = request.getPostParameter("period").toInt();
+		AppSettings.mqtt_port = request.getPostParameter("port").toInt();
+		AppSettings.mqtt_nodeName = request.getPostParameter("nodeName");
+		//debugf("Updating MQTT settings: %d", AppSettings.ip.isNull());
+		AppSettings.save();
+	}
+
+	TemplateFileStream *tmpl = new TemplateFileStream("mqttsettings.html");
+	auto &vars = tmpl->variables();
+
+	vars["user"] = AppSettings.mqtt_user;
+	vars["password"] = AppSettings.mqtt_password;
+	vars["period"] = AppSettings.mqtt_period;
+	vars["port"] = AppSettings.mqtt_port;
+	vars["adr"] = AppSettings.mqtt_server;
+	vars["nodeName"] = AppSettings.mqtt_nodeName;
+
+	response.sendTemplate(tmpl); // will be automatically deleted
 }
 
-unsigned charReceived = 0;
-unsigned numCallback = 0;
-bool useRxFlag = true;
-#define BUF_LEN	30
-char receivedText[BUF_LEN];
-
-void onData(Stream& stream, char arrivedChar, unsigned short availableCharsCount)
+void onOtaConfig(HttpRequest &request, HttpResponse &response)
 {
-	while (stream.available())
+	if (request.getRequestMethod() == RequestMethod::POST)
 	{
-		receivedText[charReceived] = stream.read();
-		charReceived++;
-		if (receivedText[charReceived-1] == '\n') // Lets show data!
-		{
-			if (parseSerialData(receivedText, charReceived -1))
-			{
-				if (inDemoMode)
-				{
-					inDemoMode = false;
-					for (int i = 0; i < TESTAREAS; i++)
-					{
-						testareas1[i].start = 0;
-						testareas2[i].start = 0;
-						testareas3[i].start = 0;
-						testareas1[i].end = 0;
-						testareas2[i].end = 0;
-						testareas3[i].end = 0;
-						testareas1[i].setState(TestState_Off);
-						testareas2[i].setState(TestState_Off);
-						testareas3[i].setState(TestState_Off);
-					}
-					parseSerialData(receivedText, charReceived -1);
-				}
-			} else {
-				printSerialHelp();
-			}
-			
-			Serial.println("<New line received>");
-			for (int i = 0; i < (charReceived -1); i++)
-			{
-				Serial.print(receivedText[i]);
-			}
-			charReceived = 0;
-			Serial.println();
-		}
-		if (charReceived >=  BUF_LEN)
-		{
-			charReceived = 0;
-		}
+		AppSettings.ota_ROM_0 = request.getPostParameter("rom0");
+		AppSettings.ota_SPIFFS = request.getPostParameter("spiffs");
+		AppSettings.save();
+	}
+
+	TemplateFileStream *tmpl = new TemplateFileStream("otasettings.html");
+	auto &vars = tmpl->variables();
+
+	vars["rom0"] = AppSettings.ota_ROM_0;
+	vars["spiffs"] = AppSettings.ota_SPIFFS;
+
+	response.sendTemplate(tmpl); // will be automatically deleted
+}
+void onFile(HttpRequest &request, HttpResponse &response)
+{
+	String file = request.getPath();
+	if (file[0] == '/')
+		file = file.substring(1);
+
+	if (file[0] == '.')
+		response.forbidden();
+	else
+	{
+		response.setCache(86400, true); // It's important to use cache for better performance.
+		response.sendFile(file);
 	}
 }
 
-
-void init()
+void onAjaxNetworkList(HttpRequest &request, HttpResponse &response)
 {
-	//pinMode(5, OUTPUT);
-	//	digitalWrite(5,1);
+	JsonObjectStream* stream = new JsonObjectStream();
+	JsonObject& json = stream->getRoot();
+
+	json["status"] = (bool)true;
+
+	bool connected = WifiStation.isConnected();
+	json["connected"] = connected;
+	if (connected)
+	{
+		// Copy full string to JSON buffer memory
+		json["network"]= WifiStation.getSSID();
+	}
+
+	JsonArray& netlist = json.createNestedArray("available");
+	for (int i = 0; i < networks.count(); i++)
+	{
+		if (networks[i].hidden) continue;
+		JsonObject &item = netlist.createNestedObject();
+		item["id"] = (int)networks[i].getHashId();
+		// Copy full string to JSON buffer memory
+		item["title"] = networks[i].ssid;
+		item["signal"] = networks[i].rssi;
+		item["encryption"] = networks[i].getAuthorizationMethodName();
+	}
+
+	response.setAllowCrossDomainOrigin("*");
+	response.sendJsonObject(stream);
+}
+void onAjaxRunOta(HttpRequest &request, HttpResponse &response)
+{
+	//OtaUpdate();
+}
+void makeConnection()
+{
+	WifiStation.enable(true);
+	WifiStation.config(network, password);
+
+	AppSettings.ssid = network;
+	AppSettings.password = password;
+	AppSettings.save();
+
+	network = ""; // task completed
+}
+
+void onAjaxConnect(HttpRequest &request, HttpResponse &response)
+{
+	JsonObjectStream* stream = new JsonObjectStream();
+	JsonObject& json = stream->getRoot();
+
+	String curNet = request.getPostParameter("network");
+	String curPass = request.getPostParameter("password");
+
+	bool updating = curNet.length() > 0 && (WifiStation.getSSID() != curNet || WifiStation.getPassword() != curPass);
+	bool connectingNow = WifiStation.getConnectionStatus() == eSCS_Connecting || network.length() > 0;
+
+	if (updating && connectingNow)
+	{
+		debugf("wrong action: %s %s, (updating: %d, connectingNow: %d)", network.c_str(), password.c_str(), updating, connectingNow);
+		json["status"] = (bool)false;
+		json["connected"] = (bool)false;
+	}
+	else
+	{
+		json["status"] = (bool)true;
+		if (updating)
+		{
+			network = curNet;
+			password = curPass;
+			debugf("CONNECT TO: %s %s", network.c_str(), password.c_str());
+			json["connected"] = false;
+			connectionTimer.initializeMs(1200, makeConnection).startOnce();
+		}
+		else
+		{
+			json["connected"] = WifiStation.isConnected();
+			debugf("Network already selected. Current status: %s", WifiStation.getConnectionStatusName());
+		}
+	}
+
+	if (!updating && !connectingNow && WifiStation.isConnectionFailed())
+		json["error"] = WifiStation.getConnectionStatusName();
+
+	response.setAllowCrossDomainOrigin("*");
+	response.sendJsonObject(stream);
+}
+
+void startWebServer()
+{
+	server.listen(80);
+	server.addPath("/", onIndex);
+	server.addPath("/ipconfig", onIpConfig);
+	server.addPath("/mqttconfig", onMqttConfig);
+	//server.addPath("/ota", onOtaConfig);
+	server.addPath("/ajax/get-networks", onAjaxNetworkList);
+	//server.addPath("/ajax/run-ota", onAjaxRunOta);
+	server.addPath("/ajax/connect", onAjaxConnect);
+	server.setDefaultHandler(onFile);
+}
+
+
+void networkScanCompleted(bool succeeded, BssList list)
+{
+	if (succeeded)
+	{
+		for (int i = 0; i < list.count(); i++)
+			if (!list[i].hidden && list[i].ssid.length() > 0)
+				networks.add(list[i]);
+	}
+	networks.sort([](const BssInfo& a, const BssInfo& b){ return b.rssi - a.rssi; } );
+}
+void init() {
+	pinMode(PIN_BUTTON, INPUT);
+	pinMode(PIN_GREEN, OUTPUT);
+	pinMode(PIN_BLUE, OUTPUT);
+	pinMode(PIN_RED, OUTPUT);
+	digitalWrite(PIN_GREEN,1); //Green
+	digitalWrite(PIN_BLUE,0); //Blue
+	digitalWrite(PIN_RED,0); //Red
+
+	indicationTimer.initializeMs(50, indicationFunction).start(); // every 20 seconds
 	Serial.begin(SERIAL_BAUD_RATE); // 115200 by default
-	Serial.systemDebugOutput(false); // Disable debug output to serial
+	Serial.systemDebugOutput(false); // Debug output to serial
 
-	Serial.print("NeoPixel demo .. start");
+	
+    spiffs_mount(); // Mount file system, in order to work with files
+	AppSettings.load();
 
-
-    // Wifi could be used eg. for switching Neopixel from internet
-	// could be also dissabled if no needed
-
-	//WifiStation.config(WIFI_SSID, WIFI_PWD);
-	WifiStation.enable(false);
 	WifiAccessPoint.enable(false);
-	//WifiStation.waitConnection(connect_Ok, 20, connect_Fail);
-
-
-
-	StripDemoType =0;  //demo index to be displayed
-
-	strip1.begin();  //init port
-	strip2.begin();  //init port
-	strip3.begin();  //init port
-
-	for (int i = 0; i < TESTAREAS; i++)
+	// connect to wifi
+	WifiStation.config(WIFI_SSID_2, WIFI_PWD_2);
+	WifiStation.enable(true);
+	
+	if (AppSettings.exist())
 	{
-		testareas1[i].start = 0;
-		testareas1[i].end = 0;
-		testareas1[i].setState(TestState_Off);
-		testareas2[i].start = 0;
-		testareas2[i].end = 0;
-		testareas2[i].setState(TestState_Off);
-		testareas3[i].start = 0;
-		testareas3[i].end = 0;
-		testareas3[i].setState(TestState_Off);
+		WifiStation.config(AppSettings.ssid, AppSettings.password);
+		if (!AppSettings.dhcp && !AppSettings.ip.isNull())
+			WifiStation.setIP(AppSettings.ip, AppSettings.netmask, AppSettings.gateway);
 	}
-	testareas1[0].start = 20;
-	testareas1[0].end = 65;
-	testareas1[1].start = 65;
-	testareas1[1].end = 109;
-	testareas1[2].start = 140;
-	testareas1[2].end = 185;
-	testareas1[3].start = 200;
-	testareas1[3].end = 240;
-	testareas1[4].start = 110;
-	testareas1[4].end = 134;
-	testareas1[5].start = 300;
-	testareas1[5].end = 365;
-	testareas1[6].start = 400;
-	testareas1[6].end = 550;
-	testareas1[7].start = 560;
-	testareas1[7].end = 600;
-	testareas1[8].start = 620;
-	testareas1[8].end = 670;
-	testareas1[9].start = 700;
-	testareas1[9].end = 730;
+	mqtt = new MqttClient(AppSettings.mqtt_server,AppSettings.mqtt_port, onMessageReceived);
 
-	testareas2[0].start = 20;
-	testareas2[0].end = 105;
-	testareas2[1].start = 165;
-	testareas2[1].end = 200;
-	testareas2[2].start = 210;
-	testareas2[2].end = 250;
+	WifiStation.startScan(networkScanCompleted);
 
-	testareas3[0].start = 20;
-	testareas3[0].end = 165;
-	testareas3[1].start = 165;
-	testareas3[1].end = 200;
-	testareas3[2].start = 200;
-	testareas3[2].end = 245;
+	// Start AP for configuration
+	WifiAccessPoint.enable(true);
+	WifiAccessPoint.config("Sming Configuration "+ WifiStation.getMAC(), "", AUTH_OPEN);
 
-	StripDemoTimer.initializeMs(4000, InitDemo2).start();  //start demo
+	// Run WEB server
+	startWebServer();
+	
+	
+	Serial.println("Type 'help' and press enter for instructions.");
+	Serial.println();
+	
+	Serial.setCallback(serialCallBack);
+	// Run our method when station was connected to AP (or not connected)
+	WifiStation.waitConnection(connectOk, 20, connectFail); // We recommend 20+ seconds for connection timeout at start
 
-	Serial.setCallback(onData);
+	SendValueTimer.initializeMs(500, SendValue).start(); // every 20 seconds
+
 }
-
-
-

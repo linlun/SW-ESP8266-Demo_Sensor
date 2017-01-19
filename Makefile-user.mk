@@ -22,7 +22,7 @@
 
 ## COM port parameter is reqruied to flash firmware correctly.
 ## Windows: 
- COM_PORT = COM7
+ COM_PORT = COM5
 
 ## MacOS / Linux:
 # COM_PORT = /dev/tty.usbserial
@@ -34,6 +34,7 @@
 # SPI_MODE = dio
 
 ## SPIFFS options
-DISABLE_SPIFFS = 1
-# SPIFF_FILES = files
+# DISABLE_SPIFFS = 1
+SPIFF_FILES = files
+
 

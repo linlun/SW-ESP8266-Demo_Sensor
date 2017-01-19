@@ -1,2 +1,2 @@
-# SW-ESP8266-LED_Strips
-Use neopixel LED strips to display status of test rigs
+# SW-ESP8266-Demo_Sensor
+Send adc value with mqtt
