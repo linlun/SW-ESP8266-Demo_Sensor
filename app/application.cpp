@@ -2,6 +2,7 @@
 #include "SmingCore.h"
 #include <AppSettings.h>
 #include <config.h>
+#include "wifi_config.h"
 
 // If you want, you can define WiFi settings globally in Eclipse Environment Variables
 #ifndef WIFI_SSID
@@ -9,8 +10,7 @@
 	#define WIFI_PWD "pass"
 #endif
 
-#define WIFI_SSID_2 "ssid" // Put you SSID and Password here
-#define WIFI_PWD_2 "pass"
+
 
 HttpServer server;
 BssList networks;
@@ -136,6 +136,8 @@ void SendValue()
 	}
 	oldValue = valuef;
 }
+
+float currentSetTemp = 20;
 void indicationFunction()
 {
 	static uint32 buttonCounter = 0;
@@ -148,11 +150,16 @@ void indicationFunction()
 		buttonCounter++;
 		if (buttonCounter ==6)
 		{
-			
+			currentSetTemp += 5.0;
+			if (currentSetTemp > 45)
+				currentSetTemp = 5;
+			if (mqtt->getConnectionState() == eTCS_Connected)
+				mqtt->publish(mqtt_client + "/SetValue", String(currentSetTemp)); // or publishWithQoS
 		}
 	} else {
 		buttonCounter = 0;
 	}
+
 }
 
 // Publish our message
@@ -185,6 +192,19 @@ void onMessageReceived(String topic, String message)
 			messageSentByMe = false;
 		}
 		currentTemp = message.toFloat();
+		//currentTemp = value/20.0;
+
+	}
+	if (topic.endsWith("SetValue"))
+	{
+		if (topic.equals(mqtt_client + "/SetValue"))
+		{
+			// My own message
+
+		} else {
+			messageSentByMe = false;
+		}
+		currentSetTemp = message.toFloat();
 		//currentTemp = value/20.0;
 
 	}
@@ -241,6 +261,8 @@ void startMqttClient()
 	//mqtt->subscribe(mqtt_client + "/Lunch");
 	mqtt->subscribe("+/SensorValue");
 	mqtt->subscribe("+/Heater");
+	mqtt->subscribe("+/SetValue");
+
 	mqtt->subscribe("+/Firmware");
 	mqtt->publish(mqtt_client + "/Status", "Online"); // or publishWithQoS
 }
